@@ -1,0 +1,4 @@
+"STARTUP.obj",
+"retificador.obj" 
+TO "retificador" 
+RAMSIZE(256) 

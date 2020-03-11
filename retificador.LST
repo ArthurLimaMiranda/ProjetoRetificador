@@ -1,0 +1,465 @@
+C51 COMPILER V9.01   RETIFICADOR                                                           12/05/2019 07:41:04 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE RETIFICADOR
+OBJECT MODULE PLACED IN retificador.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE retificador.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include <lcd.h>
+   2          #include <REG8253.H>
+   3          #include <ADCFuncoes.h>
+   4          #include < stdio.h >
+   5          
+   6          unsigned char Tecla, ValorADC[4];
+   7          int interCount = 0, modo = 0, ass = 1, overflow_count = 0, i=0, Vadcaux = 0, posicao = 0, casa1 = 0, casa2
+             - = 0, casa3 = 0, casa4 = 0, inter = 0;
+   8          int fase = 0;
+   9          
+  10          //INICIA O DISPLAY LCD//
+  11          Lcd4_init();
+  12          //--------------------//
+  13          
+  14          //CONEXÕES DO MÓDULO LDC//
+  15          sbit RS = P2 ^ 0;
+  16          sbit EN = P2 ^ 1;
+  17          sbit D4 = P2 ^ 2;
+  18          sbit D5 = P2 ^ 3;
+  19          sbit D6 = P2 ^ 4;
+  20          sbit D7 = P2 ^ 5;
+  21          //----------------------//
+  22          
+  23          //FUNÇÃO PARA CONVERSÃO DO VALOR LIDO DE CHAR PARA FLOAT//
+  24          void CGeraADC(float Vadc) {
+  25   1        Vadcaux = (int)(Vadc * 1000);
+  26   1        ValorADC[3] = Vadcaux / 1000;
+  27   1        ValorADC[2] = (Vadcaux % 1000) / 100;
+  28   1        ValorADC[1] = ((Vadcaux % 1000) % 100) / 10;
+  29   1        ValorADC[0] = ((Vadcaux % 1000) % 100) % 10;
+  30   1      }
+  31          //------------------------------------------------------//
+  32          
+  33          //FUNÇÃO PARA O USO DO TECLADO MATRICIAL//
+  34          char VarreLinha(char Coluna) {
+  35   1        char retornaTecla = 0;
+  36   1        switch (Coluna) {
+  37   2        case 1:
+  38   2          if (P0_4 == 0) retornaTecla = '1';
+  39   2          if (P0_5 == 0) retornaTecla = '4';
+  40   2          if (P0_6 == 0) retornaTecla = '7';
+  41   2          if (P0_7 == 0) retornaTecla = '*';
+  42   2          break;
+  43   2        case 2:
+  44   2          if (P0_4 == 0) retornaTecla = '2';
+  45   2          if (P0_5 == 0) retornaTecla = '5';
+  46   2          if (P0_6 == 0) retornaTecla = '8';
+  47   2          if (P0_7 == 0) retornaTecla = '0';
+  48   2          break;
+  49   2        case 3:
+  50   2          if (P0_4 == 0) retornaTecla = '3';
+  51   2          if (P0_5 == 0) retornaTecla = '6';
+  52   2          if (P0_6 == 0) retornaTecla = '9';
+  53   2          if (P0_7 == 0) retornaTecla = '#';
+  54   2          break;
+C51 COMPILER V9.01   RETIFICADOR                                                           12/05/2019 07:41:04 PAGE 2   
+
+  55   2      
+  56   2        case 4:
+  57   2          if (P0_4 == 0) retornaTecla = '+';
+  58   2          if (P0_5 == 0) retornaTecla = '-';
+  59   2          if (P0_6 == 0) retornaTecla = '*';
+  60   2          if (P0_7 == 0) retornaTecla = '/';
+  61   2          break;
+  62   2        default:
+  63   2          break;
+  64   2        }
+  65   1        return retornaTecla;
+  66   1      }
+  67          
+  68          char LerTeclado() {
+  69   1        char i;
+  70   1        unsigned char TeclaLida = 0;
+  71   1        P0 = 0xff;
+  72   1        for (i = 1; i < 5; i++) 
+  73   1        {
+  74   2          switch (i) {
+  75   3          case 1:
+  76   3            P0_0 = 0;
+  77   3            if (TeclaLida == 0) TeclaLida = VarreLinha(i);
+  78   3            P0_0 = 1;
+  79   3            break;
+  80   3          case 2:
+  81   3            P0_1 = 0;
+  82   3            if (TeclaLida == 0) TeclaLida = VarreLinha(i);
+  83   3            P0_1 = 1;
+  84   3            break;
+  85   3          case 3:
+  86   3            P0_2 = 0;
+  87   3            if (TeclaLida == 0) TeclaLida = VarreLinha(i);
+  88   3            P0_2 = 1;
+  89   3            break;
+  90   3          default:
+  91   3            break;
+  92   3          }
+  93   2        }
+  94   1        return TeclaLida;
+  95   1      }
+  96          //--------------------------------------//
+  97          
+  98          //FUNÇÃO DE DELAY//
+  99          void Delay(int a){
+ 100   1          int j, i;   
+ 101   1          for(i=0;i<a;i++){
+ 102   2              for(j=0;j<100;j++){
+ 103   3              }
+ 104   2          }
+ 105   1      }
+ 106          
+ 107          
+ 108          //---------------//
+ 109          
+ 110          //INTERRUPÇÃO EXTERNA, RESPONSÁVEL PELA GERAÇÃO DA SINCRONIZAÇÃO COM A REDE//
+ 111          void TrataIntExt0(void) interrupt 0 {
+ 112   1      
+ 113   1        if (P0_6 == 0) {
+ 114   2          Lcd4_Clear();
+ 115   2          P3_1 = 0;
+ 116   2          modo = 0;
+C51 COMPILER V9.01   RETIFICADOR                                                           12/05/2019 07:41:04 PAGE 3   
+
+ 117   2          inter = 0;
+ 118   2          EX0 = 0;
+ 119   2        }
+ 120   1        fase = 0;
+ 121   1        P2_6 ^= 1;
+ 122   1        TR0 = 1;
+ 123   1      
+ 124   1      }
+ 125          //-------------------------------------------------------------------------//
+ 126          
+ 127          //INTERRUPÇÃO DO TIMER, RESPONSÁVEL PELA GERAÇÃO DOS PULSOS TRIFÁSICOS//
+ 128          void timer0_ISR(void) interrupt 1 {
+ 129   1        
+ 130   1        if (fase == 0) {
+ 131   2          if (ass == 1) {
+ 132   3      
+ 133   3            TH0 = 0x0ff;
+ 134   3            TL0 = 0x038;
+ 135   3      
+ 136   3            if (overflow_count++ == (22)) {
+ 137   4      
+ 138   4              TR0 = 0;
+ 139   4              P2_7 = 0;
+ 140   4              fase++;
+ 141   4              overflow_count = 0;
+ 142   4              TR0 = 1;
+ 143   4            }
+ 144   3            if ((overflow_count > posicao) && (overflow_count < (posicao + 4))) {
+ 145   4              P2_7 = 1;
+ 146   4            } 
+ 147   3                else {
+ 148   4              P2_7 = 0;
+ 149   4            }
+ 150   3          }
+ 151   2        }
+ 152   1        if (fase == 1) {
+ 153   2          if (ass == 1) {
+ 154   3      
+ 155   3            TH0 = 0x0ff;
+ 156   3            TL0 = 0x038;
+ 157   3      
+ 158   3            if (overflow_count++ == (22)) {
+ 159   4      
+ 160   4              TR0 = 0;
+ 161   4              fase++;
+ 162   4              overflow_count = 0;
+ 163   4              TR0 = 1;
+ 164   4            }
+ 165   3            if ((overflow_count > posicao) && (overflow_count < (posicao + 4))) {
+ 166   4              P3_4 = 1;
+ 167   4            } 
+ 168   3                else {
+ 169   4              P3_4 = 0;
+ 170   4            }
+ 171   3          }
+ 172   2        }
+ 173   1        if (fase == 2) {
+ 174   2          if (ass == 1) {
+ 175   3      
+ 176   3            TH0 = 0x0ff;
+ 177   3            TL0 = 0x038;
+ 178   3      
+C51 COMPILER V9.01   RETIFICADOR                                                           12/05/2019 07:41:04 PAGE 4   
+
+ 179   3            if (overflow_count++ == (22)) {
+ 180   4      
+ 181   4              TR0 = 0;
+ 182   4              fase++;
+ 183   4              overflow_count = 0;
+ 184   4            }
+ 185   3            if ((overflow_count > posicao) && (overflow_count < (posicao + 4))) {
+ 186   4              P3_5 = 1;
+ 187   4            } 
+ 188   3                else {
+ 189   4              P3_5 = 0;
+ 190   4            }
+ 191   3          }
+ 192   2        }
+ 193   1      }
+ 194          //--------------------------------------------------------------------//
+ 195          
+ 196          
+ 197          void main(void) {
+ 198   1        float exemplo = 0;
+ 199   1        int tensaozinha = 0;
+ 200   1        int mande = 0;
+ 201   1        TMOD = 0x01; // (TMOD & 0xF0) | 0x01; /* Configira modo */
+ 202   1        EA = 1; /* Habilitaçãode interrupções */
+ 203   1      
+ 204   1        ET0 = 1; /* Habilita Interrupção do Timer 0 */
+ 205   1        IT0 = 1; // Conf , Sensibilida e Transição
+ 206   1        TH0 = 0x0ff;
+ 207   1        TL0 = 0x018;
+ 208   1      
+ 209   1        Lcd4_init();
+ 210   1        Lcd4_Clear();
+ 211   1        while (1) {
+ 212   2          if ((modo == 0) && (inter != 1)) {
+ 213   3      
+ 214   3            exemplo = readadc(1, 0);
+ 215   3            CGeraADC(exemplo);
+ 216   3            Lcd4_Set_Cursor(1, 0);
+ 217   3            Lcd4_Write_String("Vt=");
+ 218   3            Lcd4_Write_Char(ValorADC[3] + 0x30);
+ 219   3      
+ 220   3            Lcd4_Write_Char(',');
+ 221   3            Lcd4_Write_Char(ValorADC[2] + 0x30);
+ 222   3            Lcd4_Write_Char(ValorADC[1] + 0x30);
+ 223   3            Lcd4_Write_String("V|Opt=P37");
+ 224   3      
+ 225   3            Lcd4_Set_Cursor(2, 0);
+ 226   3            Lcd4_Write_String("RETIF_CONTROLADO");
+ 227   3      
+ 228   3            if (inter == 1) {
+ 229   4              EX0 = 1;
+ 230   4            }
+ 231   3            if (P3_7 == 0) {
+ 232   4              modo = 1;
+ 233   4              Lcd4_Clear();
+ 234   4            }
+ 235   3          }
+ 236   2      
+ 237   2          if (modo == 1) {
+ 238   3            Lcd4_Set_Cursor(1, 0);
+ 239   3            Lcd4_Write_String("Ajuste_Vout   =1");
+ 240   3      
+C51 COMPILER V9.01   RETIFICADOR                                                           12/05/2019 07:41:04 PAGE 5   
+
+ 241   3            Lcd4_Set_Cursor(2, 0);
+ 242   3            Lcd4_Write_String("Config_Disparo=2");
+ 243   3      
+ 244   3            if (LerTeclado() == '1') {
+ 245   4              modo = 2;
+ 246   4              Lcd4_Clear();
+ 247   4            } else if (LerTeclado() == '2') {
+ 248   4              modo = 3;
+ 249   4              Lcd4_Clear();
+ 250   4            }
+ 251   3          }
+ 252   2          if (modo == 2) {
+ 253   3            Lcd4_Set_Cursor(1, 1);
+ 254   3            Lcd4_Write_String("VALOR_MEDIO =1");
+ 255   3      
+ 256   3            Lcd4_Set_Cursor(2, 1);
+ 257   3            Lcd4_Write_String("VALOR_EFICAZ =2");
+ 258   3      
+ 259   3            if (LerTeclado() == '1') {
+ 260   4              Lcd4_Clear();
+ 261   4              Lcd4_Set_Cursor(1, 1);
+ 262   4              Lcd4_Write_String("INSIRA VAL MED:");
+ 263   4              Lcd4_Set_Cursor(2, 1);
+ 264   4              Delay(2000);
+ 265   4              mande = LerTeclado();
+ 266   4              Lcd4_Write_Char(mande);
+ 267   4              casa1 = mande;
+ 268   4              Delay(2000);
+ 269   4              mande = LerTeclado();
+ 270   4              Lcd4_Write_Char(mande);
+ 271   4              casa2 = mande;
+ 272   4              Delay(2000);
+ 273   4              Lcd4_Write_Char(',');
+ 274   4              Delay(2000);
+ 275   4              mande = LerTeclado();
+ 276   4              Lcd4_Write_Char(mande);
+ 277   4              casa3 = mande;
+ 278   4              Delay(2000);
+ 279   4              mande = LerTeclado();
+ 280   4              Lcd4_Write_Char(mande);
+ 281   4              casa4 = mande;
+ 282   4              Delay(2000);;
+ 283   4              tensaozinha = ((((casa1 - 0x30) * 1000) + ((casa2 - 0x30) * 100) + ((casa3 - 0x30) * 10) + ((casa4
+             - - 0x30))) / 100);
+ 284   4              switch (tensaozinha) {
+ 285   5              case 0:
+ 286   5                posicao = 22;
+ 287   5                break;
+ 288   5              case 1:
+ 289   5                posicao = 20;
+ 290   5                break;
+ 291   5              case 2:
+ 292   5                posicao = 19;
+ 293   5                break;
+ 294   5              case 3:
+ 295   5                posicao = 13;
+ 296   5                break;
+ 297   5              case 4:
+ 298   5                posicao = 4;
+ 299   5                break;
+ 300   5              case 5:
+ 301   5                posicao = 2;
+C51 COMPILER V9.01   RETIFICADOR                                                           12/05/2019 07:41:04 PAGE 6   
+
+ 302   5                break;
+ 303   5              default:
+ 304   5                posicao = 0;
+ 305   5      
+ 306   5              }
+ 307   4              Lcd4_Clear();
+ 308   4              Lcd4_Set_Cursor(1, 0);
+ 309   4              Lcd4_Write_String("Vt=");
+ 310   4              Lcd4_Write_Char(casa1);
+ 311   4              Lcd4_Write_Char(casa2);
+ 312   4              Lcd4_Write_Char(',');
+ 313   4              Lcd4_Write_Char(casa3);
+ 314   4              Lcd4_Write_String("V|VLT=P06");
+ 315   4      
+ 316   4              Lcd4_Set_Cursor(2, 0);
+ 317   4              Lcd4_Write_String("RETIF_CONTROLADO");
+ 318   4              Delay(1000);
+ 319   4              modo = 0;
+ 320   4              inter = 1;
+ 321   4              EX0 = 1;
+ 322   4      
+ 323   4            } 
+ 324   3                else if (LerTeclado() == '2') {
+ 325   4              Lcd4_Clear();
+ 326   4              Lcd4_Set_Cursor(1, 1);
+ 327   4              Lcd4_Write_String("INSIRA VAL EFI:");
+ 328   4              Lcd4_Set_Cursor(2, 1);
+ 329   4              Delay(2000);
+ 330   4              mande = LerTeclado();
+ 331   4              Lcd4_Write_Char(mande);
+ 332   4              casa1 = mande;
+ 333   4              Delay(2000);
+ 334   4              mande = LerTeclado();
+ 335   4              Lcd4_Write_Char(mande);
+ 336   4              casa2 = mande;
+ 337   4              Delay(2000);
+ 338   4              Lcd4_Write_Char(',');
+ 339   4              Delay(2000);
+ 340   4              mande = LerTeclado();
+ 341   4              Lcd4_Write_Char(mande);
+ 342   4              casa3 = mande;
+ 343   4              Delay(2000);
+ 344   4              mande = LerTeclado();
+ 345   4              Lcd4_Write_Char(mande);
+ 346   4              casa4 = mande;
+ 347   4              Delay(2000);;
+ 348   4              tensaozinha = ((((casa1 - 0x30) * 1000) + ((casa2 - 0x30) * 100) + ((casa3 - 0x30) * 10) + ((casa4
+             - - 0x30))) / 100);
+ 349   4              switch (tensaozinha) {
+ 350   5              case 0:
+ 351   5                posicao = 22;
+ 352   5                break;
+ 353   5              case 1:
+ 354   5                posicao = 21;
+ 355   5                break;
+ 356   5              case 2:
+ 357   5                posicao = 19;
+ 358   5                break;
+ 359   5              case 3:
+ 360   5                posicao = 17;
+ 361   5                break;
+ 362   5              case 4:
+C51 COMPILER V9.01   RETIFICADOR                                                           12/05/2019 07:41:04 PAGE 7   
+
+ 363   5                posicao = 14;
+ 364   5                break;
+ 365   5              case 5:
+ 366   5                posicao = 12;
+ 367   5                break;
+ 368   5              case 6:
+ 369   5                posicao = 9;
+ 370   5                break;
+ 371   5              case 7:
+ 372   5                posicao = 5;
+ 373   5                break;
+ 374   5              default:
+ 375   5                posicao = 0;
+ 376   5      
+ 377   5              }
+ 378   4              Lcd4_Clear();
+ 379   4              Lcd4_Set_Cursor(1, 0);
+ 380   4              Lcd4_Write_String("Vt=");
+ 381   4              Lcd4_Write_Char(casa1);
+ 382   4              Lcd4_Write_Char(casa2);
+ 383   4              Lcd4_Write_Char(',');
+ 384   4              Lcd4_Write_Char(casa3);
+ 385   4              Lcd4_Write_String("V|VLT=P06");
+ 386   4      
+ 387   4              Lcd4_Set_Cursor(2, 0);
+ 388   4              Lcd4_Write_String("RETIF_CONTROLADO");
+ 389   4              Delay(1000);
+ 390   4              modo = 0;
+ 391   4              inter = 1;
+ 392   4              EX0 = 1;
+ 393   4            }
+ 394   3          }
+ 395   2          if (modo == 3) {
+ 396   3      
+ 397   3            Lcd4_Set_Cursor(1, 0);
+ 398   3            Lcd4_Write_String("SINGLE_PULSE =1");
+ 399   3      
+ 400   3            Lcd4_Set_Cursor(2, 0);
+ 401   3            Lcd4_Write_String("TREM_DE_PULSO=2");
+ 402   3      
+ 403   3            if (LerTeclado() == '1') {
+ 404   4              Lcd4_Clear();
+ 405   4              Lcd4_Set_Cursor(1, 1);
+ 406   4              Lcd4_Write_String("SINGLE PULSE");
+ 407   4              Delay(1000);
+ 408   4              modo = 0;
+ 409   4              ass = 1;
+ 410   4              Lcd4_Clear();
+ 411   4            } 
+ 412   3                else if (LerTeclado() == '2') {
+ 413   4              Lcd4_Clear();
+ 414   4              Lcd4_Set_Cursor(1, 1);
+ 415   4              Lcd4_Write_String("TREM_DE_PULSO");
+ 416   4              Delay(1000);
+ 417   4              modo = 0;
+ 418   4              ass = 2;
+ 419   4              Lcd4_Clear();
+ 420   4      
+ 421   4            }
+ 422   3          }
+ 423   2        }
+ 424   1      }
+C51 COMPILER V9.01   RETIFICADOR                                                           12/05/2019 07:41:04 PAGE 8   
+
+*** WARNING C290 IN LINE 69 OF RETIFICADOR.C: missing return value
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2257    ----
+   CONSTANT SIZE    =    197    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     31      21
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       2
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)
