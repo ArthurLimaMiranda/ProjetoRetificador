@@ -12,11 +12,15 @@ O principal objetivo desse projeto é desenvolver um Módulo Didático de um Ret
 
 4. Objetivos Específicos
 
-4.1 Ajuste de Tensão de Saída do Módulo  
-Os valores da tensão poderão ser especificados de duas formas: Valor Médio e Valor Eficaz. Esses serão informados através de                               Teclado Matricial com registro em Display LCD.
+4.1 Ajuste de Tensão de Saída do Módulo 
 
-4.2 Visualização das Tensões 
-A tensão total do sistema deverá ser visualizadas no Display LCD.
+  Os valores da tensão poderão ser especificados de duas formas: Valor Médio e Valor Eficaz. Esses serão informados através de                               Teclado Matricial com registro em Display LCD.
 
-4.3 Configuração de disparo 
-Os disparos poderão ser por trem de pulso ou single pulse. Além de ser possível o ajuste de largura.
+4.2 Visualização das Tensões
+
+  A tensão total do sistema deverá ser visualizadas no Display LCD.
+
+4.3 Configuração de disparo
+
+
+  Os disparos poderão ser por trem de pulso ou single pulse. Além de ser possível o ajuste de largura.
